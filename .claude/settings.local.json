@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat *)",
+      "Bash(C:/Users/Aditya/smartattend_venv/Scripts/python.exe *)"
+    ]
+  }
+}

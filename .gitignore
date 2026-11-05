@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+# personal / biometric data - never commit
+data/smartattend.db
+data/.secret.key
+data/videos/
+data/models/
+outputs/
+dataset/
+*.mp4
+*.avi
+*.mov

@@ -1,0 +1,12 @@
+[server]
+maxUploadSize = 4096        # MB - classroom videos can be large
+headless = true
+
+[browser]
+gatherUsageStats = false     # privacy: no telemetry
+
+[theme]
+base = "light"
+
+[client]
+showSidebarNavigation = false   # navigation is the role-aware menu inside the app

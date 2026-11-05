@@ -1,0 +1,12 @@
+.git
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+data/smartattend.db
+data/.secret.key
+data/videos
+outputs
+dataset
+data/models

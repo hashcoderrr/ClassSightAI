@@ -1,0 +1,236 @@
+# SmartAttend configuration. All thresholds and paths live here.
+# Relative paths are resolved against the directory containing this file.
+
+paths:
+  data_dir: data
+  outputs_dir: outputs
+  db_path: data/smartattend.db
+  key_path: data/.secret.key          # Fernet key; override with env SMARTATTEND_KEY
+  insightface_root: data               # models auto-download to <root>/models/buffalo_l
+  videos_dir: data/videos              # used only when privacy.retain_raw_video is true
+  log_file: outputs/smartattend.log
+  zones_file: data/camera_zones.yaml   # board/teacher zones drawn in the UI (one per camera)
+
+models:
+  name: buffalo_l                      # InsightFace pack (SCRFD-10G detector + ArcFace R100)
+  use_gpu: true                        # CUDA via onnxruntime-gpu; falls back to CPU automatically
+  gpu_id: 0
+  det_size: [640, 640]
+  det_thresh: 0.5
+  use_faiss: false                     # use FAISS IndexFlatIP if installed (large galleries)
+
+enrollment:
+  min_images: 3
+  max_images: 10
+  min_blur_var: 60.0                   # Laplacian variance below this = blurry
+  min_face_size: 60                    # px, shorter side of the face box
+  video_sample_frames: 10              # frames sampled from a selfie video
+  default_class: "10A"
+
+video:
+  frame_skip: 5                        # process every Nth frame
+  max_width: 1920                      # frames wider than this are downscaled first
+  upscale_factor: 1.0                  # >1 helps tiny back-bench faces (costly)
+  tiled_detection: false               # tile wide-angle / 4K frames
+  tile_size: 640
+  tile_overlap: 0.2
+  min_face_size: 16                    # px; detections smaller than this are dropped
+  max_stream_seconds: 3600             # safety stop for live streams
+  reconnect_attempts: 5                # RTSP reconnect tries
+  prefetch: true                       # decode video files in a background thread
+
+tracker:
+  track_high_thresh: 0.5
+  track_low_thresh: 0.1
+  new_track_thresh: 0.6
+  match_thresh: 0.8                    # 1 - IoU cost threshold
+  track_buffer: 30                     # processed frames a lost track is kept
+
+recognition:
+  similarity_threshold: 0.45           # cosine similarity
+  min_votes: 5                         # matched crops required ...
+  min_seconds: 3.0                     # ... OR matched for this many seconds (with >=2 votes)
+  max_crops_per_track: 10              # best-quality crops kept per track
+  embed_interval: 2                    # embed a track crop at most every N processed frames
+  min_quality: 0.25                    # quality score (0..1) below which a crop is ignored
+  margin: 0.05                         # best match must beat 2nd-best student by this margin
+
+unknown:
+  enabled: true
+  min_track_frames: 5                  # ignore very short unknown tracks
+  cluster_threshold: 0.5               # cosine similarity to join an unknown cluster
+
+enhance:
+  clahe: true                          # low-light enhancement
+  low_light_threshold: 90              # mean gray below this triggers CLAHE + gamma
+  clahe_always: false
+  clip_limit: 2.0
+
+occlusion:
+  enabled: false                       # mask / partial occlusion tolerance
+  threshold_relaxation: 0.05           # lowers similarity threshold ...
+  extra_votes: 2                       # ... but requires more votes
+
+liveness:
+  enabled: false                       # basic anti-spoofing (photo / phone screen)
+  model_path: ""                       # optional MiniFASNet-style ONNX model (80x80, class 1 = real)
+  min_score: 0.5
+
+late:
+  enabled: true
+  class_start_offset_sec: 0            # where in the video the class starts
+  grace_minutes: 5
+
+headcount:
+  enabled: true
+  interval_minutes: 5
+  left_early_minutes: 10               # last seen this long before the end => "Left early"
+
+annotate:
+  enabled: true
+  write_all_frames: true               # reuse last boxes on skipped frames
+  codec_preference: [avc1, mp4v]
+
+report:
+  embed_snapshots: true
+  history_threshold: 75.0              # % below which students are highlighted
+  write_csv: true
+  write_json: true
+
+privacy:
+  retain_raw_video: false              # store embeddings only by default
+  raw_video_retention_days: 7
+  output_retention_days: 90            # annotated videos / snapshots / unknown thumbnails
+
+notify:
+  email:
+    enabled: false
+    smtp_host: smtp.gmail.com
+    smtp_port: 587
+    use_tls: true
+    username: ""
+    password_env: SMARTATTEND_SMTP_PASSWORD
+    sender: ""
+    teacher_email: ""
+    attach_snapshots: false            # attach a report without face thumbnails by default
+    parent_alerts: false               # requires guardian_email on students
+  whatsapp:
+    enabled: false                     # Twilio WhatsApp API; text only, never face data
+    account_sid: ""
+    auth_token_env: SMARTATTEND_TWILIO_TOKEN
+    from_number: ""                    # e.g. whatsapp:+14155238886
+    teacher_number: ""
+
+logging:
+  level: INFO
+
+auth:
+  # Built-in admin account, created (or its password restored) every time main.py / the web app starts,
+  # so no registration is needed. Change the password before real deployment.
+  default_admin_username: admin
+  default_admin_password: admin123     # min 8 characters
+  enforce_default_admin: true          # false = create once, never reset the password afterwards
+
+# ---------------------------------------------------------------------------
+# Class Attentiveness & Behaviour Analytics  (--mode attendance+behaviour)
+# Indicative estimates of OBSERVABLE behaviour only - not for disciplinary use.
+behaviour:
+  every_n_processed: 1                 # run heavy models on every Nth processed frame (states interpolated)
+  classifier: rules                    # BehaviourClassifier implementation (see behaviour_classifier.py)
+  smoothing_window_sec: 2.5            # centred majority vote to remove flicker
+  out_of_frame_sec: 4.0                # track lost longer than this => "Out of frame"
+  body_fallback_sec: 30.0              # keep following a student by body pose this long after the face is lost
+  timeline_bin_sec: 60                 # "minute-by-minute" bin size
+  drop_threshold: 15.0                 # class score drop (points) that marks an engagement drop
+  drop_lookback: 3                     # bins averaged as the reference before a drop
+  include_unknown_in_class: false      # unknown persons (e.g. the teacher) excluded from class score
+  min_landmark_face: 24                # px; smaller faces use the 5-point head-pose fallback
+  allowed_roles: [admin, teacher]      # who may open analytics (role-based access)
+
+  pose:
+    enabled: true
+    model: yolo11n-pose.pt             # downloaded once to data/models/ (Ultralytics; runs locally)
+    conf: 0.3
+    imgsz: 960
+  objects:
+    enabled: true
+    model: yolo11n.pt                  # COCO: cell phone, book, laptop. Use a custom model for pens.
+    conf: 0.3
+    imgsz: 960
+    hand_dist: 1.5                     # object-to-wrist distance (face heights) to link it to a student
+    classes:                           # canonical label: [model class names]
+      phone: ["cell phone", "phone", "mobile phone"]
+      book: ["book"]
+      notebook: ["notebook"]
+      laptop: ["laptop"]
+      pen: ["pen", "pencil"]
+
+  board:                               # geometry for "looking at board"
+    yaw_limit: 25.0                    # facing-camera mode: |yaw| <= this ...
+    pitch_min: -25.0                   # ... and pitch within [min, max]  (+pitch = down)
+    pitch_max: 15.0
+    camera_is_board: true              # polygon mode: facing the camera also counts as the board
+    min_ray: 0.15
+    zones: {}                          # inline zones {camera_id: [[x,y],...]} (normalised); UI writes zones_file
+
+  rules:                               # rule-based classifier thresholds
+    kp_conf: 0.3
+    away_yaw: 35.0                     # looking away: |yaw| beyond this ...
+    away_min_sec: 2.0                  # ... for at least this long
+    down_pitch: 20.0                   # looking down / writing
+    sleep_pitch: 35.0                  # head down / sleeping: pitch beyond this ...
+    sleep_pitch_no_eyes: 50.0          # (when eyes are not measurable)
+    ear_closed: 0.18                   # ... and Eye Aspect Ratio below this ...
+    sleep_min_sec: 3.0                 # ... for at least this long
+    talk_window_sec: 2.0               # talking: MAR std over this window ...
+    talk_mar_std: 0.04                 # ... above this ...
+    talk_yaw: 15.0                     # ... with the head turned at least this much
+    talk_min_samples: 4
+    hand_raise_margin: 0.0             # wrist above nose by this many face heights
+    desk_hand_offset: 0.5              # wrist below shoulders by this many shoulder widths = on desk
+    stand_rise_shoulder: 0.6           # shoulders rise (shoulder widths) vs seated baseline
+    stand_rise_face: 1.0               # face rises (face heights) vs baseline (no body pose)
+    move_speed: 1.5                    # face heights per second = moving
+    baseline_sec: 20.0
+    body_only_conf: 0.5                # confidence multiplier when only body pose is visible
+    kps5_conf: 0.8                     # multiplier for the coarse 5-point head pose
+    no_pose_writing_conf: 0.5
+    priority: [phone, sleeping, hand_raised, standing, talking, looking_away, writing, looking_board, other]
+
+  scoring:
+    use_confidence: true               # confidence-weighted time average
+    weights:                           # per-frame score = clip(50 + 50*w, 0, 100); null = not scored
+      looking_board: 1.0
+      writing: 0.9
+      hand_raised: 1.0
+      looking_away: -0.5
+      talking: -0.4
+      phone: -1.0
+      sleeping: -1.0
+      standing: 0.0
+      other: 0.0
+      out_of_frame: null
+    labels:                            # label: minimum score
+      Highly Attentive: 75
+      Attentive: 50
+      Partially Attentive: 30
+      Inattentive: 0
+
+  video:
+    enabled: true
+    replace_attendance_video: true     # behaviour video becomes the session's annotated video
+    preview_height: 720                # lightweight web-player version
+    skeleton: true
+    head_arrow: true
+    side_panel: true
+    hold_sec: 2.0
+    popup_sec: 2.5
+
+  report:
+    include_movement_sheet: true       # per-second raw data sheet (can be large)
+    max_movement_rows: 200000
+    write_csv: true
+    write_json: true
+
+  privacy:
+    class_level_only: false            # aggregate class analytics only, no per-student data stored/shown

@@ -1,0 +1,32 @@
+# Core CV / ML (tested: Python 3.11-3.14, insightface 2.1, onnxruntime 1.31)
+insightface>=2.1            # pure-Python wheel; 0.7.3 also works but needs a C++ compiler on Windows
+onnxruntime>=1.17           # CPU. For NVIDIA GPU: pip uninstall onnxruntime && pip install onnxruntime-gpu
+opencv-python>=4.8
+numpy>=1.24
+scipy>=1.10
+scikit-image>=0.21
+
+# Behaviour analytics (body pose + objects). Pulls PyTorch; for CPU-only installs run first:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+# Without ultralytics the behaviour module runs face-only (no hand-raise / phone / posture rules).
+ultralytics>=8.3            # YOLO11-pose + YOLO11 detection (tested 8.4)
+pyarrow>=14.0               # Parquet signal cache (falls back to CSV if missing)
+
+# Reports / data
+openpyxl>=3.1
+Pillow>=10.0
+pandas>=2.0
+PyYAML>=6.0
+
+# Security
+cryptography>=42.0
+
+# Web app
+streamlit>=1.46
+plotly>=5.18
+
+# Tests
+pytest>=8.0
+
+# Optional: large galleries (thousands of students)
+# faiss-cpu>=1.8
