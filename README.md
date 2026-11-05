@@ -1,4 +1,4 @@
-# SmartAttend: AI-Based Classroom Attendance from Video / CCTV Footage
+# ClassSightAI: AI-Based Classroom Attendance from Video / CCTV Footage
 
 SmartAttend takes a classroom video file (MP4/AVI/MOV), an RTSP/CCTV stream or a webcam. It detects and
 recognises every student's face, marks attendance automatically and exports a formatted Excel report, an
